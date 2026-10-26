@@ -8,7 +8,7 @@ import { heroContent, personalInfo, socialLinks } from '../data/portfolioData';
 const Hero = ({ onVideoLoaded }) => {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false); // Default to unmuted so sound plays
   const [isVideoReady, setIsVideoReady] = useState(false);
 
   useEffect(() => {
@@ -41,32 +41,66 @@ const Hero = ({ onVideoLoaded }) => {
 
   const toggleVideo = (e) => {
     e.stopPropagation();
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play().then(() => {
-          setIsPlaying(true);
-        }).catch((err) => {
-          console.warn("Autoplay or play was blocked:", err);
-        });
-      } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      // Direct user gesture: unmute and play with sound at 100% volume
+      video.muted = false;
+      video.volume = 1.0;
+      setIsMuted(false);
+
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            console.warn("Autoplay with sound was blocked by browser, attempting muted fallback:", err);
+            video.muted = true;
+            setIsMuted(true);
+            video.play().then(() => setIsPlaying(true));
+          });
       }
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const toggleSound = (e) => {
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    if (!nextMuted) {
+      video.volume = 1.0;
+    }
+    setIsMuted(nextMuted);
+
+    // If video is paused, also start playing when unmuting
+    if (!nextMuted && video.paused) {
+      video.play().then(() => setIsPlaying(true));
     }
   };
 
   return (
     <section className="relative w-full h-screen overflow-hidden bg-black">
-      {/* Background Poster - Displays immediately to prevent layout shifts */}
+      {/* Background Poster - Displays immediately, fades out once video is active */}
       <div 
-        className="absolute top-0 left-0 w-full h-full bg-cover bg-center z-0 transition-opacity duration-1000"
+        className={`absolute top-0 left-0 w-full h-full bg-cover bg-center z-0 transition-opacity duration-1000 ${
+          isVideoReady ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
         style={{ 
           backgroundImage: `url(${heroPoster})`,
           backgroundPosition: 'center 20%'
         }}
       />
 
-      {/* Background Video - Smoothly fades in once loaded */}
+      {/* Background Video - Crystal clear, zero faded wash */}
       <video
         ref={videoRef}
         loop
@@ -74,7 +108,7 @@ const Hero = ({ onVideoLoaded }) => {
         playsInline
         onLoadedData={handleVideoLoad}
         onCanPlay={handleVideoLoad}
-        className={`absolute top-0 left-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${
+        className={`absolute top-0 left-0 w-full h-full object-cover z-0 transition-opacity duration-700 ${
           isVideoReady ? 'opacity-100' : 'opacity-0'
         }`}
         style={{ objectPosition: 'center 20%' }}
@@ -83,8 +117,18 @@ const Hero = ({ onVideoLoaded }) => {
         Your browser does not support the video tag.
       </video>
 
-      {/* Dark overlay to ensure text readability */}
-      <div className="absolute inset-0 bg-black/45 z-10" />
+      {/* Targeted Directional Gradient: Darkens ONLY the bottom-left text zone.
+          Leaves the character, top, center, and vibrant red background completely 100% bright, vivid, and un-faded! */}
+      <div 
+        className={`absolute inset-0 pointer-events-none z-10 transition-opacity duration-700 ${
+          isPlaying ? 'opacity-60' : 'opacity-90'
+        }`}
+      >
+        {/* Mobile Gradient */}
+        <div className="md:hidden w-full h-full bg-gradient-to-t from-black/90 via-black/40 via-45% to-transparent" />
+        {/* Desktop Gradient: Bottom-left focus only */}
+        <div className="hidden md:block w-full h-full bg-gradient-to-tr from-black/85 via-black/25 via-40% to-transparent" />
+      </div>
 
       {/* Left Floating Social Bar for Large Screens */}
       <div className="hidden lg:flex flex-col gap-6 fixed left-6 top-1/2 -translate-y-1/2 z-50 mix-blend-difference">
@@ -141,20 +185,20 @@ const Hero = ({ onVideoLoaded }) => {
             </a>
           </div>
 
-          {/* Main Heading */}
+          {/* Main Heading with Crisp Shadow */}
           <h1 
             data-aos="fade-up"
-            className="text-white text-3xl md:text-5xl lg:text-6xl font-black mb-4 tracking-tight leading-[1.15]"
+            className="text-white text-3xl md:text-5xl lg:text-6xl font-black mb-4 tracking-tight leading-[1.15] drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
           >
             {heroContent.greeting}, <br /> 
-            <span className="text-transparent [-webkit-text-stroke:1.5px_white]">{heroContent.titleHighlight}</span>
+            <span className="text-transparent [-webkit-text-stroke:1.5px_white] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{heroContent.titleHighlight}</span>
           </h1>
 
           {/* Subheading */}
           <p 
             data-aos="fade-up"
             data-aos-delay="200"
-            className="text-white/80 text-sm md:text-lg font-medium mb-8 max-w-lg drop-shadow-md leading-relaxed"
+            className="text-white/90 text-sm md:text-lg font-medium mb-8 max-w-lg drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-relaxed"
           >
             {heroContent.subtitle}
           </p>
@@ -168,7 +212,7 @@ const Hero = ({ onVideoLoaded }) => {
             {/* Primary Button */}
             <a 
               href={heroContent.ctaPrimary.href}
-              className="px-5 py-3 text-xs md:text-sm rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all duration-300 transform hover:scale-105 shadow-md"
+              className="px-5 py-3 text-xs md:text-sm rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all duration-300 transform hover:scale-105 shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
             >
               {heroContent.ctaPrimary.text}
             </a>
@@ -178,7 +222,7 @@ const Hero = ({ onVideoLoaded }) => {
               href={socialLinks.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-3 text-xs md:text-sm rounded-full bg-black/40 border border-white text-white font-bold hover:bg-black/60 transition-all duration-300 backdrop-blur-md"
+              className="px-5 py-3 text-xs md:text-sm rounded-full bg-black/50 border border-white/80 text-white font-bold hover:bg-black/80 transition-all duration-300 backdrop-blur-md shadow-md"
             >
               Hire Me
             </a>
@@ -187,7 +231,7 @@ const Hero = ({ onVideoLoaded }) => {
             <a 
               href={heroContent.ctaResume.href}
               download="Hani_Sri_Burugupalli_Resume.pdf"
-              className="px-5 py-3 text-xs md:text-sm rounded-full bg-transparent border border-white/50 text-white font-bold hover:bg-white hover:text-black transition-all duration-300 backdrop-blur-md flex items-center gap-2"
+              className="px-5 py-3 text-xs md:text-sm rounded-full bg-black/30 border border-white/60 text-white font-bold hover:bg-white hover:text-black transition-all duration-300 backdrop-blur-md flex items-center gap-2 shadow-md"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -197,29 +241,68 @@ const Hero = ({ onVideoLoaded }) => {
           </div>
         </div>
 
-        {/* Right Side: Play Video Button */}
+        {/* Right Side: Interactive Controls (Play/Pause Reel & Sound Toggle) */}
         <div 
           data-aos="zoom-in"
           data-aos-delay="600"
-          className="mt-8 md:mt-0 flex flex-row md:flex-col items-center gap-2 md:gap-3 cursor-pointer group self-start md:self-auto z-20"
-          onClick={toggleVideo}
+          className="mt-8 md:mt-0 flex flex-row md:flex-col items-center gap-3 self-start md:self-auto z-20"
         >
-          <div className="w-12 h-12 md:w-20 md:h-20 rounded-full border border-white/30 bg-black/20 backdrop-blur-md flex justify-center items-center group-hover:scale-110 group-hover:bg-red-600 transition-all duration-500 shadow-[0_0_30px_rgba(255,255,255,0.1)] group-hover:shadow-[0_0_40px_rgba(220,38,38,0.6)]">
-            {!isPlaying ? (
-              // Play Icon
-              <svg className="w-5 h-5 md:w-8 md:h-8 text-white ml-0.5 md:ml-1" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+          {/* Main Play/Pause Button */}
+          <button 
+            type="button"
+            className="flex flex-col items-center gap-2 cursor-pointer group bg-transparent border-0 p-0 focus:outline-none"
+            onClick={toggleVideo}
+            aria-label={!isPlaying ? "Play video with audio" : "Pause video"}
+          >
+            <div className={`w-14 h-14 md:w-20 md:h-20 rounded-full border border-white/40 bg-black/40 backdrop-blur-md flex justify-center items-center group-hover:scale-110 group-hover:bg-red-600 transition-all duration-500 ${
+              isPlaying 
+                ? 'bg-red-600/90 shadow-[0_0_40px_rgba(220,38,38,0.7)] border-red-400' 
+                : 'shadow-[0_0_30px_rgba(0,0,0,0.5)] group-hover:shadow-[0_0_40px_rgba(220,38,38,0.6)]'
+            }`}>
+              {!isPlaying ? (
+                // Play Icon
+                <svg className="w-6 h-6 md:w-8 md:h-8 text-white ml-0.5 md:ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              ) : (
+                // Pause Icon
+                <svg className="w-6 h-6 md:w-8 md:h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+              )}
+            </div>
+            <span className="text-white text-[11px] md:text-xs font-bold tracking-widest uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-85 group-hover:opacity-100 transition-opacity">
+              {!isPlaying ? "Play Reel" : "Pause Reel"}
+            </span>
+          </button>
+
+          {/* Sound Toggle Button (Click to Mute / Unmute) */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 border border-white/30 text-white text-[10px] md:text-xs font-semibold backdrop-blur-md hover:bg-black/70 hover:border-white transition-all duration-300 shadow-md cursor-pointer"
+            aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+            title={isMuted ? "Unmute Sound" : "Mute Sound"}
+          >
+            {isMuted ? (
+              <>
+                {/* Muted Speaker Icon */}
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+                <span>Sound: OFF</span>
+              </>
             ) : (
-              // Pause Icon
-              <svg className="w-5 h-5 md:w-8 md:h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-              </svg>
+              <>
+                {/* Unmuted Playing Speaker Icon */}
+                <svg className="w-4 h-4 text-green-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                <span>Sound: ON</span>
+              </>
             )}
-          </div>
-          <span className="text-white text-[10px] md:text-xs font-bold tracking-widest uppercase opacity-70 group-hover:opacity-100 transition-opacity">
-            {!isPlaying ? "Play Reel" : "Pause"}
-          </span>
+          </button>
         </div>
       </div>
 
@@ -231,7 +314,7 @@ const Hero = ({ onVideoLoaded }) => {
       >
         <div className="animate-bounce">
           <svg 
-            className="w-6 h-6 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" 
+            className="w-6 h-6 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" 
             fill="none" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
