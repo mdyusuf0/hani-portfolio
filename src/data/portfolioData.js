@@ -20,8 +20,7 @@ export const personalInfo = {
 };
 
 export const socialLinks = {
-  linkedin: "https://linkedin.com/in/haniburugupalli",
-  linkedinSecondary: "https://www.linkedin.com/in/hani-burugupalli-02b02a331/",
+  linkedin: "https://www.linkedin.com/in/hani-burugupalli-02b02a331/",
   email: "haniburugupalli83@gmail.com",
   phone: "+919533697777",
 };
@@ -161,7 +160,7 @@ export const projects = [
       "Built an AI-powered platform analyzing resumes, project evidence, and assessment performance to verify skills and identify skill gaps for students and fresh graduates. Implemented adaptive assessments, career-readiness scoring, a recommendation engine, job matching, and personalized learning roadmaps to guide users toward relevant career opportunities.",
     techTags: ["React.js", "Python", "AI/ML", "NLP"],
     links: {
-      demo: null, // In active development
+      demo: "https://skillbridgeai-70bl.onrender.com",
     },
     isFlagship: false,
   },
